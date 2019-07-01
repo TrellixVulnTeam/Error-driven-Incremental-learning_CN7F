@@ -1,0 +1,22 @@
+{
+'aquarium_fish': 0, 'bear': 1,
+'beaver': 2, 'bee': 3,
+'beetle': 4,'butterfly': 5,
+'camel': 6, 'caterpillar': 7,
+'cattle': 8, 'chimpanzee': 9,
+'cockroach': 10, 'crab': 11, 'crocodile': 12,
+'dinosaur': 13, 'dolphin': 14,
+'elephant': 15, 'flatfish': 16, 'fox': 17,
+'hamster': 18, 'kangaroo': 19,
+'leopard': 20, 'lion': 21, 'lizard': 22,
+'lobster': 23, 'mouse': 24,
+'otter': 25, 'porcupine': 26, 'possum': 27,
+'rabbit': 28, 'raccoon': 29,
+'ray': 30, 'seal': 31, 'shark': 32,
+'shrew': 33, 'skunk': 34,
+'snail': 35, 'snake': 36, 'spider': 37,
+'squirrel': 38, 'tiger': 39,
+'trout': 40, 'turtle': 41, 'whale': 42,
+'wolf': 43, 'worm': 44
+}
+['lizard', 'worm', 'hamster', 'lobster', 'shrew', 'beetle', 'butterfly', 'kangaroo', 'leopard', 'possum', 'beaver', 'camel', 'caterpillar', 'chimpanzee', 'turtle', 'porcupine', 'rabbit', 'fox', 'spider', 'dolphin', 'bee', 'raccoon', 'aquarium_fish', 'crocodile', 'crab', 'shark', 'snail', 'tiger', 'dinosaur', 'seal']

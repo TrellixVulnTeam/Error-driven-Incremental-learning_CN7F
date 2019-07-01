@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="astarai@10.217.142.96:22">
+    <serverData>
+      <paths name="astarai@10.217.142.96:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/astarai/Desktop/Incremental" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
