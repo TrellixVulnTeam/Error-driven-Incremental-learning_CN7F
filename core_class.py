@@ -11,7 +11,11 @@ class BranchModel:
         self.classes = classes              # arr of int: which classes are clustered by this branch
         self.clustering = clustering        # arr of int: results of clustering algo; len same as the above
         self.cluster_num = cluster_num      # classes are divided into n clusters
-        self.need_training = False
+        self.need_training = True
+        self.accuracy = -1
+
+    def set_acc(self, acc):
+        self.accuracy = acc
 
     def turn_train_state(self, bool_val):
         self.need_training = bool_val
@@ -36,6 +40,7 @@ class BranchModel:
         print()
         print('######################')
         print('name:{}'.format(self.name))
+        print('accuracy:{}'.format(self.accuracy))
         print('classes:{}'.format(self.classes))
         print('clustering:{}'.format(self.clustering))
         print('######################')
@@ -49,6 +54,10 @@ class LeafModel:
         self.classes = classes
         self.mapping = mapping
         self.need_training = False
+        self.accuracy = -1
+
+    def set_acc(self, acc):
+        self.accuracy = acc
 
     def turn_train_state(self, bool_val):
         self.need_training = bool_val
@@ -68,6 +77,7 @@ class LeafModel:
         print()
         print('####################')
         print('name:{}'.format(self.name))
+        print('accuracy:{}'.format(self.accuracy))
         print('classes:{}'.format(self.classes))
         print('mapping:{}'.format(self.mapping))
         print('####################')
@@ -79,8 +89,8 @@ class LearningState:
     def __init__(self):
 
         self.root_model = None         # string
-        self.branch_model_list = []   # string
-        self.leaf_model_list = []     # string
+        self.branch_model_list = []    # string
+        self.leaf_model_list = []      # string
 
         self._old_classes = []         # int
         self._new_classes = []         # int
@@ -129,7 +139,7 @@ class LearningState:
         else:
             self.branch_leaf_map[branch_model.name] = [leaf_model.name]
 
-    def add_to_superclass(self, model_name, class_idx): # model_name is the name of a leaf model
+    def add_to_superclass(self, model_name, class_idx):  # model_name is the name of a leaf model
         # self.leaf_class_map[model_name].append(class_idx)
         if class_idx in self._new_classes:
             self._new_classes.remove(class_idx)
@@ -151,7 +161,7 @@ class LearningState:
         #                 self.name_model_map[branch_model].add_one_cluster(child_model_idx)
 
         parent_idx = extract_number('p', model_name)
-        layer = extract_number('l', model_name)
+        layer = int(extract_number('l', model_name))
         cluster_id = extract_number('s', model_name)
 
         while layer > 0:
@@ -185,6 +195,7 @@ class LearningState:
 
         self.add_leaf_model(new_leaf_model)
         self.leaf_class_map[new_leaf_model.name] = new_leaf_model.classes
+        # self.name_model_map[new_leaf_model.name] = new_leaf_model
 
         for branch in self.branch_model_list:
             if old_leaf_model.name in self.branch_leaf_map[branch]:

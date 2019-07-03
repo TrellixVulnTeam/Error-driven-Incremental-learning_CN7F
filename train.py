@@ -30,10 +30,10 @@ parser.add_argument('--randn', metavar='N', type=int, default=1,
                     help='random seed for the whole system')
 args = parser.parse_args()
 
-torch.manual_seed(args.randn)
-
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+# torch.manual_seed(args.randn)
+#
+# torch.backends.cudnn.deterministic = True
+# torch.backends.cudnn.benchmark = False
 
 
 def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, list
@@ -64,11 +64,12 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     dataset['train'] = trainset
     dataset['val'] = testset
 
-    flat_model_name = 'l{}-p{}-s{}'.format(current_layer, old_parent, old_model_id)
+    # flat_model_name = 'l{}-p{}-s{}'.format(current_layer, old_parent, old_model_id)
+    flat_model_name = old_leaf_name
     # if os.path.exists(join(configs.trained, flat_model_name + '.pkl')):
     #     flat_net = torch.load(join(configs.trained, flat_model_name + '.pkl'))
     # else:
-    flat_net, best_acc = train(parse_args(), flat_model_name, dataset, model=net)
+    flat_net, best_accy = train(parse_args(), flat_model_name, dataset, model=net)
     flat_net = copy.deepcopy(flat_net)
 
     cluster_labels, flat_acc = clustering(flat_model_name, testset, num_superc)
@@ -79,6 +80,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     for_test = []
     leaf_name_ls = []
 
+    leaf_acc = []
     if num_classes > 10:
         for i in range(num_superc):
 
@@ -88,7 +90,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
 
             num_subclass = len(superclass[-1])
 
-            model_name = 'l{}-p{}{}-s{}'.format(current_layer+1, old_parent, old_model_id, i)
+            model_name = 'l{}-p{}{}-s{}'.format(int(current_layer)+1, old_parent, old_model_id, i)
             leaf_name_ls.append(model_name)
             train_set = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, superclass[-1])
             test_set = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, superclass[-1])
@@ -99,9 +101,12 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
             # if os.path.exists(join(configs.trained, model_name+'.pkl')):
             #     net = torch.load(join(configs.trained, model_name+'.pkl'))
             # else:
-            net, best_acc = train(parse_args(), model_name,
-                                  make_dataset_dict(train_set, test_set), model=sub_net)
+            # net, best_acc = train(parse_args(), model_name,
+            #                       make_dataset_dict(train_set, test_set), model=sub_net)
+            net, best_acc = train(parse_args(new_leaf=True), model_name,
+                                  make_dataset_dict(train_set, test_set), model=None)
             print('branch_{}_accuracy:{}'.format(i, best_acc))
+            leaf_acc.append(best_acc)
 
             leaf_net_ls.append(copy.deepcopy(net))
 
@@ -153,12 +158,14 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
         print('clone accuracy: {}'.format(clone_acc))
         print('branch accuracy: {}'.format(branch_acc))
         print('flat accuracy: {}'.format(flat_acc))
+        print('for testing: best acc :{}'.format(best_accy))
         print()
     else:
         clone_acc = 0
 
-    if num_classes < 7 or flat_acc-0.02 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
+    if num_classes < 7 or flat_acc+0.012 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
         new_leaf_model = LeafModel(flat_model_name, class_array, leaf_model.mapping)
+        new_leaf_model.set_acc(flat_acc)
         state.update_flat(old_leaf_model, new_leaf_model)
 
         if state.root_model == old_leaf_name:
@@ -172,6 +179,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
             for j in range(len(superclass[i])):
                 temp_map[str(j)] = superclass[i][j]
             leaf_model = LeafModel(leaf_name_ls[i], superclass[i], temp_map)
+            leaf_model.set_acc(leaf_acc[i])
             leaf_model_ls.append(copy.deepcopy(leaf_model))
 
         branch_model = BranchModel(flat_model_name, class_array, cluster_labels, num_superc)
@@ -307,6 +315,7 @@ def train(args: object, saved_name: object, dataset: object, model: object = Non
 
     # trained_model, best_acc = train_model(name, net, loader_dict, optimizer, scheduler, criterion, n_epochs,
     #                                       batch_size, is_inception=(model_name == "inception"))
+    print('best accuracy: {}'.format(best_accuracy))
     torch.save(best_model, join(configs.trained, name+'.pkl'))
 
     return net, best_accuracy
@@ -538,13 +547,13 @@ def incremental_learning(state, class_split, new_class_array):
         print('train branch!!')
         train_branch(state, branch_name, class_split)
 
-    state.shutdown_all_training()
+    # state.shutdown_all_training()
 
     return state
 
 
 def train_branch(state, branch_model_name, class_split):
-    print('start re-training the branch')
+    print('start re-training the branch: {}'.format(branch_model_name))
     branch_model = state.name_model_map[branch_model_name]
     if not branch_model.need_training:
         print('no need training this branch')
@@ -567,28 +576,30 @@ def train_branch(state, branch_model_name, class_split):
                 sub.append(classes[idx])
         superc.append(sub)
 
-    # trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, classes, None)
-    # testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, classes, None)
-
     trainset = BranchSet(join('Dataset', 'CIFAR100-animal'), True, class_split, superc, None)
     testset = BranchSet(join('Dataset', 'CIFAR100-animal'), False, class_split, superc, None)
 
-    new_model_name = 'l{}-p{}-s{}'.format(extract_number('l', branch_model_name),
-                                          extract_number('p', branch_model_name),
-                                          extract_number('s', branch_model_name))
+    # new_model_name = 'l{}-p{}-s{}'.format(extract_number('l', branch_model_name),
+    #                                       extract_number('p', branch_model_name),
+    #                                       extract_number('s', branch_model_name))
+
+    new_model_name = branch_model_name
 
     num_ftr = net.fc.in_features
     # net.fc = nn.Linear(num_ftr, len(branch_model.classes))
     net.fc = nn.Linear(num_ftr, cluster_num)
-    train(parse_args(), new_model_name,
-          make_dataset_dict(trainset, testset), model=net)
+    # train(parse_args(), new_model_name,
+    #       make_dataset_dict(trainset, testset), model=net)
+    _, best_acc = train(parse_args(), new_model_name,
+                        make_dataset_dict(trainset, testset), model=net)
 
+    state.name_model_map[branch_model_name].set_acc(best_acc)
     state.update_branch_name(branch_model_name, new_model_name)
 
     # state.name_model_map[new_model_name].need_training = False
 
 
-def parse_args():
+def parse_args(new_leaf=False):
     class Args:
         def __init__(self, batch_size, n_epochs, learning_rate, momentum, model_name, pretrain):
             self.batch_size = batch_size
@@ -597,12 +608,21 @@ def parse_args():
             self.momentum = momentum
             self.model_name = model_name
             self.pretrain = pretrain
-    args = Args(batch_size=100,
-                n_epochs=5,
-                learning_rate=0.001,
-                momentum=0.9,
-                model_name='resnet34',
-                pretrain=True)
+    if new_leaf:
+        args = Args(batch_size=100,
+                    n_epochs=15,
+                    learning_rate=0.001,
+                    momentum=0.9,
+                    model_name='resnet50',
+                    pretrain=True)
+    else:
+
+        args = Args(batch_size=100,
+                    n_epochs=5,
+                    learning_rate=0.001,
+                    momentum=0.9,
+                    model_name='resnet50',
+                    pretrain=True)
     return args
 
 
@@ -635,7 +655,8 @@ def main(randn_seed):
                                                       32, 42, 7,  39,  15,  36, 44, 29, 38,
                                                       40, 31, 10, 43,  19,  41, 37, 34, 33])
     else:
-        class_split = ClassSplit(45, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
+        # class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed, random_sort=[x for x in range(40)])
+        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
 
     init_name = 'l0-p0-s0'
 
@@ -728,6 +749,7 @@ def main(randn_seed):
                 f.write('\n')
                 f.write('######################\n')
                 f.write('name:{}\n'.format(model.name))
+                f.write('accuracy:{}\n'.format(model.accuracy))
                 f.write('classes:{}\n'.format(model.classes))
                 f.write('clustering:{}\n'.format(model.clustering))
                 f.write('######################\n')
@@ -736,6 +758,7 @@ def main(randn_seed):
                 f.write('\n')
                 f.write('####################\n')
                 f.write('name:{}\n'.format(model.name))
+                f.write('accuracy:{}\n'.format(model.accuracy))
                 f.write('classes:{}\n'.format(model.classes))
                 f.write('mapping:{}\n'.format(model.mapping))
                 f.write('####################\n')
@@ -751,9 +774,9 @@ if __name__ == "__main__":
     #     main(i)
 
     # main(50)
+    # main(50)
     # main(100)
     # main(100)
-    # main(101)
     # main(101)
     # main(101)
 

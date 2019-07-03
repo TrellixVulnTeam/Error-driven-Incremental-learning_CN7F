@@ -28,11 +28,11 @@ def parse_args():
     parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
     parser.add_argument('-b', '--batch-size', default=100, type=int, metavar='N',
                         help='mini-batch size (default: 128),only used for train')
-    parser.add_argument('--lr', '--learning-rate', default=0.01, type=float, metavar='LR', help='initial learning rate')
+    parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, metavar='W',
                         help='weight decay (default: 1e-4)')
-    parser.add_argument('--print-freq', '-p', default=30, type=int, metavar='N', help='print frequency (default: 10)')
+    parser.add_argument('--print-freq', '-p', default=1, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     parser.add_argument('-ct', '--cifar-type', default='100', type=int, metavar='CT',
                         help='10 for cifar10,100 for cifar100 (default: 10)')
@@ -71,7 +71,7 @@ def train_general():
 
         # model = densenet_BC_cifar(depth=190, k=40, num_classes=100)
 
-        model, _ = models.initialize_model('resnet101', 45, False, use_pretrained=True)
+        model, _ = models.initialize_model('resnet101', 40, False, use_pretrained=False)
 
         # mkdir a new folder to store the checkpoint and best model
         if not os.path.exists('result'):
@@ -169,11 +169,10 @@ def train_general():
         testloader = torch.utils.data.DataLoader(test_dataset, batch_size=100, shuffle=False, num_workers=2)
 
     # trainset, testset, _ = load_datasets('CIFAR100-animal')
-    classSplit = ClassSplit(45, [15, 5, 5, 5, 5, 5, 5], random_seed=17)
-    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, classSplit, [x for x in range(30)], None)
-    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, classSplit, [x for x in range(30)], None)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2,
-                                              sampler=MySampler(trainset))
+    classSplit = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_sort=[x for x in range(40)])
+    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, classSplit, [1,31], None)
+    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, classSplit, [1,31], None)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -188,12 +187,12 @@ def train_general():
         # remember best precision and save checkpoint
         is_best = prec > best_prec
         best_prec = max(prec, best_prec)
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'state_dict': model.state_dict(),
-            'best_prec': best_prec,
-            'optimizer': optimizer.state_dict(),
-        }, is_best, fdir)
+        # save_checkpoint({
+        #     'epoch': epoch + 1,
+        #     'state_dict': model.state_dict(),
+        #     'best_prec': best_prec,
+        #     'optimizer': optimizer.state_dict(),
+        # }, is_best)
 
 
 class AverageMeter(object):
@@ -249,7 +248,7 @@ def train_model(trainloader, model, criterion, optimizer, epoch):
         end = time.time()
 
         # if i % args.print_freq == 0:
-        # if i % 100 == 0:
+        # # if i % 100 == 0:
         #     print('Epoch: [{0}][{1}/{2}]\t'
         #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
         #           'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -286,7 +285,7 @@ def validate(val_loader, model, criterion):
             end = time.time()
 
             # if i % args.print_freq == 0:
-            # if i % 100 == 0:
+            # # if i % 100 == 0:
             #     print('Test: [{0}/{1}]\t'
             #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
             #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
