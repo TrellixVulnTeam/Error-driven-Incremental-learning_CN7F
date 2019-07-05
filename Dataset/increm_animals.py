@@ -11,6 +11,7 @@ import random
 
 import copy
 import numpy as np
+from scipy.io import loadmat
 
 
 class ClassSplit:
@@ -79,7 +80,8 @@ class BranchSet(data.Dataset):
                  train,
                  class_split,     # an instance of ClassSplit
                  superclass_set,  # array of array
-                 transform=None):
+                 transform=None,
+                 crop=False):
 
         self.root = root
         self.train = train
@@ -138,6 +140,10 @@ class BranchSet(data.Dataset):
 
         print(label_ls)
 
+        self.crop = crop
+        if crop:
+            self.bbox = loadmat(join(self.root, self.phase, 'annotations'))
+
     def __len__(self):
         return len(self.return_tuple)
 
@@ -145,6 +151,9 @@ class BranchSet(data.Dataset):
         image_name, target_class = self.return_tuple[item]
         image_path = join(self.root, self.phase, image_name)
         image = Image.open(image_path).convert('RGB')
+
+        if self.crop:
+            image = image.crop(self.bbox[image_name.lower()][0])
 
         if self.transform:
             image = self.transform(image)
@@ -159,7 +168,8 @@ class FlexAnimalSet(data.Dataset):
                  train,
                  class_split,   # an instance of ClassSplit
                  required_arr,  # An array of new class index
-                 transform=None):
+                 transform=None,
+                 crop=False):
 
         self.root = root
         self.train = train
@@ -172,17 +182,12 @@ class FlexAnimalSet(data.Dataset):
         else:
             self.transform = transforms.Compose([
                 transforms.RandomResizedCrop(224),
+                # transforms.Resize(224),
+                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0,
                                      np.array([63.0, 62.1, 66.7]) / 255.0),
             ])
-            if train:
-                self.transform = transforms.Compose([
-                    transforms.Pad(4, padding_mode='reflect'),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomCrop(32),
-                    self.transform
-                ])
 
         if train:
             self.phase = 'train'
@@ -220,6 +225,10 @@ class FlexAnimalSet(data.Dataset):
 
         print(label_ls)
 
+        self.crop = crop
+        if crop:
+            self.bbox = loadmat(join(self.root, 'annotations'))
+
     def __len__(self):
         return len(self.return_tuple)
 
@@ -228,6 +237,8 @@ class FlexAnimalSet(data.Dataset):
         image_path = join(self.root, self.phase, image_name)
         image = Image.open(image_path).convert('RGB')
 
+        if self.crop:
+            image = image.crop(self.bbox[image_name.lower()][0])
         if self.transform:
             image = self.transform(image)
 

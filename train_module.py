@@ -170,11 +170,11 @@ def train_general():
 
     # trainset, testset, _ = load_datasets('CIFAR100-animal')
     classSplit = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_sort=[x for x in range(40)])
-    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, classSplit, [1,31], None)
-    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, classSplit, [1,31], None)
+    trainset = FlexAnimalSet(join('Dataset', 'ImageNet'), True, classSplit, [x for x in range(40)], None)
+    testset = FlexAnimalSet(join('Dataset', 'ImageNet'), False, classSplit, [x for x in range(40)], None)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
-
+    print(len(trainset))
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch, model_type)
 
@@ -247,15 +247,15 @@ def train_model(trainloader, model, criterion, optimizer, epoch):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        # if i % args.print_freq == 0:
-        # # if i % 100 == 0:
-        #     print('Epoch: [{0}][{1}/{2}]\t'
-        #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-        #           'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-        #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-        #           'Prec {top1.val:.3f}% ({top1.avg:.3f}%)'.format(
-        #            epoch, i, len(trainloader), batch_time=batch_time,
-        #             data_time=data_time, loss=losses, top1=top1))
+        if i % args.print_freq == 0:
+        # if i % 100 == 0:
+            print('Epoch: [{0}][{1}/{2}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Prec {top1.val:.3f}% ({top1.avg:.3f}%)'.format(
+                   epoch, i, len(trainloader), batch_time=batch_time,
+                    data_time=data_time, loss=losses, top1=top1))
 
 
 def validate(val_loader, model, criterion):

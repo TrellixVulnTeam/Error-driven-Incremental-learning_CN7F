@@ -81,7 +81,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     leaf_name_ls = []
 
     leaf_acc = []
-    if num_classes > 10:
+    if num_classes > 50:
         for i in range(num_superc):
 
             superclass.append([class_array[idx] for idx in range(len(cluster_labels)) if cluster_labels[idx] == i])
@@ -163,7 +163,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     else:
         clone_acc = 0
 
-    if num_classes < 7 or flat_acc+0.013 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
+    if num_classes < 7 or flat_acc+0.017 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
         new_leaf_model = LeafModel(flat_model_name, class_array, leaf_model.mapping)
         new_leaf_model.set_acc(flat_acc)
         state.update_flat(old_leaf_model, new_leaf_model)
@@ -573,7 +573,7 @@ def train_branch(state, branch_model_name, class_split):
     for cl_idx in range(cluster_num):
         sub = []
         for idx in range(len(clustering)):
-            if clustering[idx] == cl_idx:
+            if str(clustering[idx]) == str(cl_idx):
                 sub.append(classes[idx])
         superc.append(sub)
 
@@ -589,7 +589,7 @@ def train_branch(state, branch_model_name, class_split):
 
     state.name_model_map[branch_model_name].set_acc(best_acc)
     state.update_branch_name(branch_model_name, new_model_name)
-    
+
 
 def parse_args(new_leaf=False):
     class Args:
@@ -652,8 +652,8 @@ def main(randn_seed):
 
     init_name = 'l0-p0-s0'
 
-    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, [x for x in range(5)], None)
-    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, [x for x in range(5)], None)
+    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, [x for x in range(45)], None)
+    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, [x for x in range(45)], None)
 
     # trainset, testset, _ = load_datasets('CIFAR100-animal')
 
@@ -661,19 +661,19 @@ def main(randn_seed):
 
     init_map = dict()
 
-    for i in range(5):
+    for i in range(45):
         init_map[str(i)] = i
 
-    root_model = LeafModel(init_name, [x for x in range(5)], init_map)
+    root_model = LeafModel(init_name, [x for x in range(45)], init_map)
 
     state = LearningState()
     state.set_root_model(root_model.name)
-    state.init_state(root_model, [x for x in range(5)])
+    state.init_state(root_model, [x for x in range(45)])
 
-    for i in range(1, 9):
-        print('coming batch: {}'.format(i))
-        state = incremental_learning(state, class_split, [x for x in range(i*5, i*5 + 5)])
-        state.print_state()
+    # for i in range(1, 9):
+    #     print('coming batch: {}'.format(i))
+    #     state = incremental_learning(state, class_split, [x for x in range(i*5, i*5 + 5)])
+    #     state.print_state()
 
     # print('coming batch: 1')
     # state = incremental_learning(state, classSplit, [5, 6, 7, 8, 9])
@@ -759,7 +759,7 @@ def main(randn_seed):
 
 
 if __name__ == "__main__":
-    main(7)
+    main(0)
     # for i in range(8):
     #     main(i)
     #     main(i)
