@@ -163,7 +163,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     else:
         clone_acc = 0
 
-    if num_classes < 7 or flat_acc+0.012 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
+    if num_classes < 7 or flat_acc+0.013 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
         new_leaf_model = LeafModel(flat_model_name, class_array, leaf_model.mapping)
         new_leaf_model.set_acc(flat_acc)
         state.update_flat(old_leaf_model, new_leaf_model)
@@ -569,6 +569,7 @@ def train_branch(state, branch_model_name, class_split):
     cluster_num = copy.deepcopy(branch_model.cluster_num)
 
     superc = []
+
     for cl_idx in range(cluster_num):
         sub = []
         for idx in range(len(clustering)):
@@ -579,25 +580,16 @@ def train_branch(state, branch_model_name, class_split):
     trainset = BranchSet(join('Dataset', 'CIFAR100-animal'), True, class_split, superc, None)
     testset = BranchSet(join('Dataset', 'CIFAR100-animal'), False, class_split, superc, None)
 
-    # new_model_name = 'l{}-p{}-s{}'.format(extract_number('l', branch_model_name),
-    #                                       extract_number('p', branch_model_name),
-    #                                       extract_number('s', branch_model_name))
-
     new_model_name = branch_model_name
 
     num_ftr = net.fc.in_features
-    # net.fc = nn.Linear(num_ftr, len(branch_model.classes))
     net.fc = nn.Linear(num_ftr, cluster_num)
-    # train(parse_args(), new_model_name,
-    #       make_dataset_dict(trainset, testset), model=net)
     _, best_acc = train(parse_args(), new_model_name,
                         make_dataset_dict(trainset, testset), model=net)
 
     state.name_model_map[branch_model_name].set_acc(best_acc)
     state.update_branch_name(branch_model_name, new_model_name)
-
-    # state.name_model_map[new_model_name].need_training = False
-
+    
 
 def parse_args(new_leaf=False):
     class Args:
@@ -613,7 +605,7 @@ def parse_args(new_leaf=False):
                     n_epochs=15,
                     learning_rate=0.001,
                     momentum=0.9,
-                    model_name='resnet50',
+                    model_name='resnet18',
                     pretrain=True)
     else:
 
@@ -621,7 +613,7 @@ def parse_args(new_leaf=False):
                     n_epochs=5,
                     learning_rate=0.001,
                     momentum=0.9,
-                    model_name='resnet50',
+                    model_name='resnet18',
                     pretrain=True)
     return args
 
@@ -656,7 +648,7 @@ def main(randn_seed):
                                                       40, 31, 10, 43,  19,  41, 37, 34, 33])
     else:
         # class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed, random_sort=[x for x in range(40)])
-        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
+        class_split = ClassSplit(45, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
 
     init_name = 'l0-p0-s0'
 
@@ -767,12 +759,12 @@ def main(randn_seed):
 
 
 if __name__ == "__main__":
-    main(0)
+    main(7)
     # for i in range(8):
     #     main(i)
     #     main(i)
     #     main(i)
-
+    #
     # main(50)
     # main(50)
     # main(100)

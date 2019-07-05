@@ -162,12 +162,22 @@ class LearningState:
 
         parent_idx = extract_number('p', model_name)
         layer = int(extract_number('l', model_name))
-        cluster_id = extract_number('s', model_name)
+        cluster_id = int(extract_number('s', model_name))
 
         while layer > 0:
+
+            # move to the upper layer
             layer = layer - 1
+
+            # verify the constant combination
+            if layer != len(parent_idx) - 2:
+                print('Bug in core_class.py: add_to_superclass()')
+                exit()
+
             for branch_name in self.branch_model_list:
-                s = re.match('l' + str(layer) + '.*s' + str(parent_idx) + '.*', branch_name)
+                # Pattern for parent model
+                s = re.match('l' + str(layer) + '-p' + parent_idx[:layer + 1] + '-s' + parent_idx[-1] + '.*',
+                             branch_name)
                 if s:
                     parent_model_name = s.group()
                     self.name_model_map[parent_model_name].add_classes([class_idx])
