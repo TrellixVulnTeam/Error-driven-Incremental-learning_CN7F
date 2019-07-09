@@ -93,17 +93,13 @@ class BranchSet(data.Dataset):
             self.transform = transform
         else:
             self.transform = transforms.Compose([
+                transforms.RandomResizedCrop(224),
+                # transforms.Resize(224),
+                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0,
                                      np.array([63.0, 62.1, 66.7]) / 255.0),
             ])
-            if train:
-                self.transform = transforms.Compose([
-                    transforms.Pad(4, padding_mode='reflect'),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomCrop(32),
-                    self.transform
-                ])
 
         if train:
             self.phase = 'train'
@@ -142,7 +138,7 @@ class BranchSet(data.Dataset):
 
         self.crop = crop
         if crop:
-            self.bbox = loadmat(join(self.root, self.phase, 'annotations'))
+            self.bbox = loadmat(join(self.root, 'annotations'))
 
     def __len__(self):
         return len(self.return_tuple)
@@ -171,7 +167,8 @@ class FlexAnimalSet(data.Dataset):
                  transform=None,
                  crop=False):
 
-        self.root = root
+        # self.root = root
+        self.root = join('Dataset', 'ImageNet')
         self.train = train
         self.classSplit = class_split
         self.required_arr = required_arr

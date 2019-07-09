@@ -247,15 +247,15 @@ def train_model(trainloader, model, criterion, optimizer, epoch):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
-        # if i % 100 == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec {top1.val:.3f}% ({top1.avg:.3f}%)'.format(
-                   epoch, i, len(trainloader), batch_time=batch_time,
-                    data_time=data_time, loss=losses, top1=top1))
+        # if i % args.print_freq == 0:
+        # # if i % 100 == 0:
+        #     print('Epoch: [{0}][{1}/{2}]\t'
+        #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+        #           'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+        #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+        #           'Prec {top1.val:.3f}% ({top1.avg:.3f}%)'.format(
+        #            epoch, i, len(trainloader), batch_time=batch_time,
+        #             data_time=data_time, loss=losses, top1=top1))
 
 
 def validate(val_loader, model, criterion):

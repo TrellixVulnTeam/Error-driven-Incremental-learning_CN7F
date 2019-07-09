@@ -26,7 +26,7 @@ from utils import extract_number
 import argparse
 
 parser = argparse.ArgumentParser(description='Process some integers.')
-parser.add_argument('--randn', metavar='N', type=int, default=1,
+parser.add_argument('--threshold', metavar='N', type=float, default=0.0,
                     help='random seed for the whole system')
 args = parser.parse_args()
 
@@ -52,8 +52,8 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     # net, _ = initialize_model('resnet34', num_classes=len(class_array), feature_extract=False)
     net = torch.load(join(configs.trained, old_leaf_name+'.pkl'))
 
-    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, class_array, None)
-    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, class_array, None)
+    trainset = FlexAnimalSet(join('Dataset', 'ImageNet'), True, class_split, class_array, None, crop=True)
+    testset = FlexAnimalSet(join('Dataset', 'ImageNet'), False, class_split, class_array, None, crop=True)
 
     num_classes = len(trainset.class_enum)
     num_features = net.fc.in_features
@@ -81,7 +81,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     leaf_name_ls = []
 
     leaf_acc = []
-    if num_classes > 50:
+    if num_classes > 0:
         for i in range(num_superc):
 
             superclass.append([class_array[idx] for idx in range(len(cluster_labels)) if cluster_labels[idx] == i])
@@ -92,17 +92,12 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
 
             model_name = 'l{}-p{}{}-s{}'.format(int(current_layer)+1, old_parent, old_model_id, i)
             leaf_name_ls.append(model_name)
-            train_set = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, superclass[-1])
-            test_set = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, superclass[-1])
+            train_set = FlexAnimalSet(join('Dataset', 'ImageNet'), True, class_split, superclass[-1], crop=True)
+            test_set = FlexAnimalSet(join('Dataset', 'ImageNet'), False, class_split, superclass[-1], crop=True)
 
             sub_net = net
             sub_net.fc = nn.Linear(num_features, num_subclass)
-            best_acc = 'Not given'
-            # if os.path.exists(join(configs.trained, model_name+'.pkl')):
-            #     net = torch.load(join(configs.trained, model_name+'.pkl'))
-            # else:
-            # net, best_acc = train(parse_args(), model_name,
-            #                       make_dataset_dict(train_set, test_set), model=sub_net)
+
             net, best_acc = train(parse_args(new_leaf=True), model_name,
                                   make_dataset_dict(train_set, test_set), model=None)
             print('branch_{}_accuracy:{}'.format(i, best_acc))
@@ -110,7 +105,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
 
             leaf_net_ls.append(copy.deepcopy(net))
 
-        test_loader = DataLoader(testset, 1, shuffle=True)
+        test_loader = DataLoader(testset, 1, shuffle=False)
 
         # below is comparing two models' accuracy (flat & clone)
         running_corrects = 0.0
@@ -127,13 +122,6 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
             for i in range(num_superc):
 
                 temp = [softmax[idx].item() for idx in range(len(softmax)) if cluster_labels[idx] == i]
-                if len(temp) < 2:
-                    print('temp:{}'.format(temp))
-                    print('cluster:{}'.format(cluster_labels))
-                    print('outputs:{}'.format(outputs))
-                    print('softmax:{}'.format(softmax))
-                    print('classify number:{}'.format(flat_net.fc.out_features))
-                    return
                 average_score = np.average(temp)
 
                 if average_score > best_score:
@@ -163,7 +151,7 @@ def extend_leaf_model(state, leaf_model, class_split, num_superc):  # string, li
     else:
         clone_acc = 0
 
-    if num_classes < 7 or flat_acc+0.017 > clone_acc:  # policy: if num_class is less than 3, use flat increment only
+    if num_classes < 7 or best_accy + args.threshold > clone_acc:  # policy: if num_class is less than 3, use flat increment only
         new_leaf_model = LeafModel(flat_model_name, class_array, leaf_model.mapping)
         new_leaf_model.set_acc(flat_acc)
         state.update_flat(old_leaf_model, new_leaf_model)
@@ -197,7 +185,7 @@ def make_dataset_dict(trainset, testset):
 
 def clustering(model_path, testset, num_superc):
 
-    test_loader = DataLoader(testset, 1, shuffle=True)
+    test_loader = DataLoader(testset, 1, shuffle=False)
 
     model = torch.load(join(configs.trained, model_path+'.pkl'))
     # num_classes = test_set.num_classes
@@ -235,7 +223,9 @@ def clustering(model_path, testset, num_superc):
         outputs = model(inputs)
 
         _, preds = torch.max(outputs, 1)
-        running_corrects += torch.sum(preds == labels.data)
+        if preds == labels.data:
+            running_corrects += 1
+        # running_corrects += torch.sum(preds == labels.data)
         cm[labels.data][preds] += 1
 
     accuracy = running_corrects*100/len(testset)
@@ -577,8 +567,8 @@ def train_branch(state, branch_model_name, class_split):
                 sub.append(classes[idx])
         superc.append(sub)
 
-    trainset = BranchSet(join('Dataset', 'CIFAR100-animal'), True, class_split, superc, None)
-    testset = BranchSet(join('Dataset', 'CIFAR100-animal'), False, class_split, superc, None)
+    trainset = BranchSet(join('Dataset', 'ImageNet'), True, class_split, superc, None, crop=True)
+    testset = BranchSet(join('Dataset', 'ImageNet'), False, class_split, superc, None, crop=True)
 
     new_model_name = branch_model_name
 
@@ -602,7 +592,7 @@ def parse_args(new_leaf=False):
             self.pretrain = pretrain
     if new_leaf:
         args = Args(batch_size=100,
-                    n_epochs=15,
+                    n_epochs=30,
                     learning_rate=0.001,
                     momentum=0.9,
                     model_name='resnet18',
@@ -610,7 +600,7 @@ def parse_args(new_leaf=False):
     else:
 
         args = Args(batch_size=100,
-                    n_epochs=5,
+                    n_epochs=20,
                     learning_rate=0.001,
                     momentum=0.9,
                     model_name='resnet18',
@@ -621,39 +611,49 @@ def parse_args(new_leaf=False):
 def main(randn_seed):
     start_time = time.time()
     if randn_seed == 100:
-        class_split = ClassSplit(45, [], random_sort=[2,  14,  25, 42, 31,
-                                                      0,  16,  30, 32, 40,
-                                                      3,   4,   5,  7, 10,
-                                                      1,  20,  21, 39, 43,
-                                                      6,   9,   8, 15, 19,
-                                                      12, 13,  22, 36, 41,
-                                                      11, 23,  35, 44, 37,
-                                                      18, 28,  24, 38, 33,
-                                                      17, 26,  27, 29, 34])
+        # class_split = ClassSplit(45, [], random_sort=[2,  14,  25, 42, 31,
+        #                                               0,  16,  30, 32, 40,
+        #                                               3,   4,   5,  7, 10,
+        #                                               1,  20,  21, 39, 43,
+        #                                               6,   9,   8, 15, 19,
+        #                                               12, 13,  22, 36, 41,
+        #                                               11, 23,  35, 44, 37,
+        #                                               18, 28,  24, 38, 33,
+        #                                               17, 26,  27, 29, 34])
+        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_sort=[x for x in range(20, 40)] +
+                                                                         [x for x in range(0, 20)])
     elif randn_seed == 101:
-        class_split = ClassSplit(45, [], random_sort=[0,  16, 30, 32, 40,
-                                                      2,  14, 25, 42, 31,
-                                                      3,   4,  5,  7, 10,
-                                                      1,  20, 21, 39, 43,
-                                                      6,   9,  8, 15, 19,
-                                                      12, 13, 22, 36, 41,
-                                                      11, 23, 35, 44, 37,
-                                                      17, 26, 27, 29, 34,
-                                                      18, 28, 24, 38, 33])
+        # class_split = ClassSplit(45, [], random_sort=[0,  16, 30, 32, 40,
+        #                                               2,  14, 25, 42, 31,
+        #                                               3,   4,  5,  7, 10,
+        #                                               1,  20, 21, 39, 43,
+        #                                               6,   9,  8, 15, 19,
+        #                                               12, 13, 22, 36, 41,
+        #                                               11, 23, 35, 44, 37,
+        #                                               17, 26, 27, 29, 34,
+        #                                               18, 28, 24, 38, 33])
+        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_sort=[x for x in range(40)])
     elif randn_seed == 50:
-        class_split = ClassSplit(45, [], random_sort=[0,  2,  3,   1,   6,  12, 11, 17, 18,
-                                                      16, 14, 4,  20,   9,  13, 23, 26, 28,
-                                                      30, 25, 5,  21,   8,  22, 35, 27, 24,
-                                                      32, 42, 7,  39,  15,  36, 44, 29, 38,
-                                                      40, 31, 10, 43,  19,  41, 37, 34, 33])
+        # class_split = ClassSplit(45, [], random_sort=[0,  2,  3,   1,   6,  12, 11, 17, 18,
+        #                                               16, 14, 4,  20,   9,  13, 23, 26, 28,
+        #                                               30, 25, 5,  21,   8,  22, 35, 27, 24,
+        #                                               32, 42, 7,  39,  15,  36, 44, 29, 38,
+        #                                               40, 31, 10, 43,  19,  41, 37, 34, 33])
+        a1 = [x for x in range(20)]
+        a2 = [x for x in range(20, 40)]
+
+        a3 = []
+        for i in range(len(a1)):
+            a3.append(a1[i])
+            a3.append(a2[i])
+        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_sort=a3)
     else:
-        # class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed, random_sort=[x for x in range(40)])
-        class_split = ClassSplit(45, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
+        class_split = ClassSplit(40, [15, 5, 5, 5, 5, 5, 5], random_seed=randn_seed)
 
     init_name = 'l0-p0-s0'
 
-    trainset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), True, class_split, [x for x in range(45)], None)
-    testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, [x for x in range(45)], None)
+    trainset = FlexAnimalSet(join('Dataset', 'ImageNet'), True, class_split, [x for x in range(5)], None)
+    testset = FlexAnimalSet(join('Dataset', 'ImageNet'), False, class_split, [x for x in range(5)], None)
 
     # trainset, testset, _ = load_datasets('CIFAR100-animal')
 
@@ -661,19 +661,19 @@ def main(randn_seed):
 
     init_map = dict()
 
-    for i in range(45):
+    for i in range(5):
         init_map[str(i)] = i
 
-    root_model = LeafModel(init_name, [x for x in range(45)], init_map)
+    root_model = LeafModel(init_name, [x for x in range(5)], init_map)
 
     state = LearningState()
     state.set_root_model(root_model.name)
-    state.init_state(root_model, [x for x in range(45)])
+    state.init_state(root_model, [x for x in range(5)])
 
-    # for i in range(1, 9):
-    #     print('coming batch: {}'.format(i))
-    #     state = incremental_learning(state, class_split, [x for x in range(i*5, i*5 + 5)])
-    #     state.print_state()
+    for i in range(1, 8):
+        print('coming batch: {}'.format(i))
+        state = incremental_learning(state, class_split, [x for x in range(i*5, i*5 + 5)])
+        state.print_state()
 
     # print('coming batch: 1')
     # state = incremental_learning(state, classSplit, [5, 6, 7, 8, 9])
@@ -704,7 +704,7 @@ def main(randn_seed):
     end_time = time.time()
     print('total training time:{}s'.format(end_time-start_time))
 
-    all_testset = FlexAnimalSet(join('Dataset', 'CIFAR100-animal'), False, class_split, [x for x in range(45)], None)
+    all_testset = FlexAnimalSet(join('Dataset', 'ImageNet'), False, class_split, [x for x in range(40)], None)
     all_testloader = DataLoader(all_testset, 1, shuffle=False)
 
     corrects = 0.0
@@ -719,10 +719,10 @@ def main(randn_seed):
 
     if not os.path.exists('results'):
         os.makedirs('results')
-    with open('results/randn-{}.txt'.format(randn_seed), 'a') as f:
+    with open('results/randn-{}-threshold-{}.txt'.format(randn_seed, args.threshold), 'a') as f:
         f.write(str(accuracy) + '\n')
         f.write('similarity:{}'.format(class_split.similar) + '\n')
-        f.write('random seed:{}'.format(args.randn))
+        # f.write('random seed:{}'.format(args.randn))
         f.write('\n')
         f.write('============================\n')
         f.write('root model:{}\n'.format(state.root_model))
@@ -759,16 +759,14 @@ def main(randn_seed):
 
 
 if __name__ == "__main__":
-    main(0)
-    # for i in range(8):
-    #     main(i)
-    #     main(i)
-    #     main(i)
-    #
-    # main(50)
-    # main(50)
-    # main(100)
-    # main(100)
-    # main(101)
-    # main(101)
+    for i in range(1, 5):
+        main(i)
+        main(i)
+
+    main(50)
+    main(50)
+    main(100)
+    main(100)
+    main(101)
+    main(101)
 
